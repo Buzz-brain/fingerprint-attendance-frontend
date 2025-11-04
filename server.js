@@ -9,6 +9,8 @@ const connectDB = require('./config/database');
 // Route imports
 const studentRoutes = require("./routes/students");
 const attendanceRouter = require("./routes/attendance");
+const eventsSSE = require("./routes/events");
+const devicesRouter = require("./routes/devices");
 
 // Initialize Express app
 const app = express();
@@ -27,9 +29,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-  process.env.ALLOWED_ORIGINS.split(',') : 
-  ['http://localhost:3000'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:8080", "http://192.168.1.100"];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -46,7 +48,7 @@ app.use(cors({
 }));
 
 // Logging
-app.use(morgan('combined'));
+// app.use(morgan('combined'));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -57,9 +59,11 @@ app.use(express.static('public'));
 
 // Routes
 
+// SSE events stream
+app.use('/api/events', eventsSSE.router);
 
-// Add /api/register route for student registration
-
+// Device status endpoint
+app.use('/api/devices', devicesRouter);
 
 // Add /api/attendance route for attendance
 app.use('/api/attendance', attendanceRouter);

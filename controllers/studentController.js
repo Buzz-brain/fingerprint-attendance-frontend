@@ -1,5 +1,7 @@
 const Student = require("../models/Student");
 const Attendance = require("../models/Attendance");
+const Event = require("../models/Event");
+const { broadcastEvent } = require("../routes/events");
 
 // Register new student
 const registerStudent = async (req, res) => {
@@ -16,6 +18,17 @@ const registerStudent = async (req, res) => {
     const existingStudent = await Student.findOne({ fingerprint_id });
     if (existingStudent) {
       console.log("Fingerprint ID already registered:", fingerprint_id);
+      // Broadcast duplicate registration event
+      broadcastEvent({
+        eventType: "student_registration_failed",
+        reason: "duplicate",
+        fingerprint_id,
+        name,
+        department,
+        device_id,
+        timestamp: new Date(),
+        details: `Duplicate registration attempt for fingerprint ID: ${fingerprint_id}`,
+      });
       return res.status(409).json({
         success: false,
         message: "Fingerprint ID already registered",
@@ -46,19 +59,54 @@ const registerStudent = async (req, res) => {
         student_id: student.student_id,
         class: student.class,
         registered_at: student.registered_at,
-      },
+      }
     });
+
+    // Log event
+    const event = new Event({
+      eventType: "student_registered",
+      studentId: student.student_id || student._id,
+      studentName: student.name,
+      deviceId: device_id || "esp32_classroom_1",
+      timestamp: new Date(),
+      details: `Student registered: ${student.name} (${student.fingerprint_id})`,
+    });
+    await event.save();
+  broadcastEvent(event);
+  
   } catch (error) {
     console.error("Student registration error:", error);
 
     if (error.code === 11000) {
       console.log("Fingerprint ID already exists error:", error);
+      // Broadcast duplicate registration event (error)
+      broadcastEvent({
+        eventType: "student_registration_failed",
+        reason: "duplicate_error",
+        fingerprint_id: req.body.fingerprint_id,
+        name: req.body.name,
+        department: req.body.department,
+        device_id: req.body.device_id,
+        timestamp: new Date(),
+        details: `Duplicate registration error for fingerprint ID: ${req.body.fingerprint_id}`,
+      });
       return res.status(409).json({
         success: false,
         message: "Fingerprint ID already exists",
       });
     }
 
+    // Broadcast generic registration error
+    broadcastEvent({
+      eventType: "student_registration_failed",
+      reason: "server_error",
+      fingerprint_id: req.body.fingerprint_id,
+      name: req.body.name,
+      department: req.body.department,
+      device_id: req.body.device_id,
+      timestamp: new Date(),
+      details: `Server error while registering student: ${error.message}`,
+    });
     res.status(500).json({
       success: false,
       message: "Server error while registering student",
@@ -66,40 +114,31 @@ const registerStudent = async (req, res) => {
   }
 };
 
-// Get all students
+// Get all students with attendance summary
 const getStudents = async (req, res) => {
   try {
-    const { department, is_active, page = 1, limit = 50 } = req.query;
-
-    const filter = {};
-    if (department) filter.department = department;
-    if (is_active !== undefined) filter.is_active = is_active === "true";
-
-    const students = await Student.find(filter)
-      .sort({ name: 1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select("-__v")
-      .exec();
-
-    const total = await Student.countDocuments(filter);
-
+    const students = await Student.find({});
+    const totalDays = await Attendance.distinct('timestamp');
+    const studentsWithSummary = await Promise.all(students.map(async (student) => {
+      const present = await Attendance.countDocuments({ fingerprint_id: student.fingerprint_id });
+      // If you track lateness, e.g. { fingerprint_id, status: 'late' }
+      const late = await Attendance.countDocuments({ fingerprint_id: student.fingerprint_id, status: 'late' });
+      const absent = totalDays.length - present;
+      const attendanceRate = totalDays.length > 0 ? ((present / totalDays.length) * 100).toFixed(2) : 0;
+      return {
+        ...student._doc,
+        present,
+        absent: absent < 0 ? 0 : absent,
+        late,
+        attendanceRate: Number(attendanceRate),
+      };
+    }));
     res.json({
       success: true,
-      data: students,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      data: studentsWithSummary,
     });
   } catch (error) {
-    console.error("Get students error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching students",
-    });
+    res.status(500).json({ success: false, message: 'Error fetching students' });
   }
 };
 

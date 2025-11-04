@@ -1,5 +1,7 @@
 const Attendance = require("../models/Attendance");
 const Student = require("../models/Student");
+const Event = require("../models/Event");
+const { broadcastEvent } = require("../routes/events");
 
 // Mark attendance
 const markAttendance = async (req, res) => {
@@ -53,6 +55,18 @@ const markAttendance = async (req, res) => {
     // Update student's last attendance timestamp
     student.last_attendance = new Date();
     await student.save();
+
+    // Create and broadcast event
+    const event = new Event({
+      eventType: "attendance_marked",
+      studentId: student.student_id || student._id,
+      studentName: student.name,
+      deviceId: device_id || "esp32_classroom_1",
+      timestamp: new Date(),
+      details: `Attendance marked for ${student.name} in ${course} (${period})`,
+    });
+    await event.save();
+    broadcastEvent(event);
 
     console.log("Attendance marked successfully for:", student.name);
     res.status(200).json({
@@ -134,9 +148,24 @@ const getAttendance = async (req, res) => {
 
     const total = await Attendance.countDocuments(filter);
 
+    // Calculate attendanceRate for each student in the attendance list
+    // Get total possible days (distinct dates in Attendance collection)
+    const totalDays = await Attendance.distinct('timestamp');
+    const attendanceWithRate = attendance.map((record) => {
+      // Count attendance for this student
+      const studentAttendanceCount = attendance.filter(
+        (r) => r.fingerprint_id === record.fingerprint_id
+      ).length;
+      // Calculate rate
+      const rate = totalDays.length > 0 ? ((studentAttendanceCount / totalDays.length) * 100).toFixed(2) : 0;
+      return {
+        ...record._doc,
+        attendanceRate: Number(rate),
+      };
+    });
     res.json({
       success: true,
-      data: attendance,
+      data: attendanceWithRate,
       pagination: {
         page,
         limit,
@@ -144,6 +173,7 @@ const getAttendance = async (req, res) => {
         pages: Math.ceil(total / limit),
       },
     });
+    // Removed event logging and undefined variables. Only sending response once.
   } catch (error) {
     console.error("Get attendance error:", error);
     res.status(500).json({
