@@ -35,16 +35,27 @@ const registerStudent = async (req, res) => {
       });
     }
 
+
+    // Generate unique student_id in the format 2020xxxxxxx (11 digits)
+    let unique = false;
+    let student_id = '';
+    while (!unique) {
+      const randomSeven = Math.floor(1000000 + Math.random() * 9000000); // 7 digits
+      student_id = `2020${randomSeven}`;
+      // Ensure student_id is unique
+      const existingId = await Student.findOne({ student_id });
+      if (!existingId) unique = true;
+    }
+
     // Create new student
-      const student = new Student({
-        fingerprint_id,
-        name: name.trim(),
-        department: department.trim(),
-        // Generate student_id automatically (MongoDB ObjectId as string)
-        student_id: new Student()._id.toString(),
-        class: device_id ? device_id.trim() : undefined,
-        // registered_at will be set by default (schema)
-      });
+    const student = new Student({
+      fingerprint_id,
+      name: name.trim(),
+      department: department.trim(),
+      student_id,
+      class: device_id ? device_id.trim() : undefined,
+      // registered_at will be set by default (schema)
+    });
 
     await student.save();
 
