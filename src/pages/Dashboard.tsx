@@ -65,35 +65,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Clear buttons and feedback */}
-      <div className="flex gap-4 items-center mb-4">
-        <Button
-          variant="destructive"
-          disabled={clearLoading}
-          onClick={() => {
-            if (window.confirm('Are you sure you want to clear all attendance records?')) {
-              handleClear('attendance');
-            }
-          }}
-        >
-          Clear Attendance
-        </Button>
-        <Button
-          variant="destructive"
-          disabled={clearLoading}
-          onClick={() => {
-            if (window.confirm('Are you sure you want to clear all student records?')) {
-              handleClear('students');
-            }
-          }}
-        >
-          Clear Students
-        </Button>
-        {clearLoading && <span className="text-xs text-muted-foreground">Clearing {clearType}...</span>}
-        {clearSuccess && <span className="text-xs text-green-600">{clearSuccess}</span>}
-        {clearError && <span className="text-xs text-red-600">{clearError}</span>}
-      </div>
-      <PageBreadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Dashboard' }]} />
+      <PageBreadcrumb
+        items={[{ label: "Home", href: "/" }, { label: "Dashboard" }]}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -118,13 +92,21 @@ export default function Dashboard() {
           <>
             <SummaryCard
               title="Total Students"
-              value={summary.totalStudents ? summary.totalStudents.toLocaleString() : '0'}
+              value={
+                summary.totalStudents
+                  ? summary.totalStudents.toLocaleString()
+                  : "0"
+              }
               icon={Users}
               gradient="bg-gradient-primary"
             />
             <SummaryCard
               title="Attendance Today"
-              value={summary.attendanceToday ? summary.attendanceToday.toLocaleString() : '0'}
+              value={
+                summary.attendanceToday
+                  ? summary.attendanceToday.toLocaleString()
+                  : "0"
+              }
               icon={UserCheck}
               gradient="bg-gradient-success"
               trend={{ value: 5.2, isPositive: true }}
@@ -143,6 +125,50 @@ export default function Dashboard() {
               trend={{ value: 2.1, isPositive: true }}
             />
           </>
+        )}
+      </div>
+      {/* Clear buttons and feedback */}
+      <div className="flex gap-4 items-center mb-4">
+        <Button
+          variant="destructive"
+          disabled={clearLoading}
+          onClick={() => {
+            if (
+              window.confirm(
+                "Are you sure you want to clear all attendance records?"
+              )
+            ) {
+              handleClear("attendance");
+            }
+          }}
+        >
+          Clear Attendance
+        </Button>
+        <Button
+          variant="destructive"
+          disabled={clearLoading}
+          onClick={() => {
+            if (
+              window.confirm(
+                "Are you sure you want to clear all student records?"
+              )
+            ) {
+              handleClear("students");
+            }
+          }}
+        >
+          Clear Students
+        </Button>
+        {clearLoading && (
+          <span className="text-xs text-muted-foreground">
+            Clearing {clearType}...
+          </span>
+        )}
+        {clearSuccess && (
+          <span className="text-xs text-green-600">{clearSuccess}</span>
+        )}
+        {clearError && (
+          <span className="text-xs text-red-600">{clearError}</span>
         )}
       </div>
 

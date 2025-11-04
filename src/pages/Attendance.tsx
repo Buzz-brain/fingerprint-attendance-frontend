@@ -228,7 +228,14 @@ export default function Attendance() {
               {loading && <p>Loading...</p>}
               {error && <p>{error}</p>}
               {!loading && !error && attendance.length === 0 && (
-                <p>No attendance records found.</p>
+                <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mx-auto mb-4 text-accent">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2" />
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  </svg>
+                  <h3 className="text-lg font-semibold mb-1">No Attendance Records</h3>
+                  <p className="max-w-md text-sm text-muted-foreground">There are currently no attendance records to display. Once students are marked present, their records will appear here.</p>
+                </div>
               )}
               {!loading && !error && attendance.length > 0 && (
                 <TableBody>
