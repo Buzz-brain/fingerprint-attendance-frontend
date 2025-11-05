@@ -1,10 +1,35 @@
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// ...existing code...
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+function authHeaders(extra: Record<string, string> = {}) {
+  const token = localStorage.getItem('token');
+  return token
+    ? { ...extra, Authorization: `Bearer ${token}` }
+    : { ...extra };
+}
 
 export const api = {
+  // Lecturer registration
+  async register(username: string, password: string) {
+    const res = await fetch(`${API_BASE_URL}/api/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      let msg = 'Registration failed';
+      try { const data = await res.json(); msg = data.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    return await res.json();
+  },
   // Dashboard summary
   async getDashboardSummary() {
-    const res = await fetch(`${API_BASE_URL}/api/attendance/stats`);
+    const res = await fetch(`${API_BASE_URL}/api/attendance/stats`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch dashboard summary");
     return await res.json();
   },
@@ -33,7 +58,9 @@ export const api = {
   // Attendance
   async getAttendance(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE_URL}/api/attendance?${query}`);
+    const res = await fetch(`${API_BASE_URL}/api/attendance?${query}`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch attendance");
     return await res.json();
   },
@@ -41,7 +68,7 @@ export const api = {
   async updateAttendance(id, data) {
     const res = await fetch(`${API_BASE_URL}/api/attendance/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update attendance");
@@ -59,6 +86,7 @@ export const api = {
   async clearAttendance() {
     const res = await fetch(`${API_BASE_URL}/api/attendance/clear`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to clear attendance");
     return await res.json();
@@ -99,5 +127,22 @@ export const api = {
     if (!res.ok) throw new Error("Failed to fetch event history");
     return await res.json();
   },
-  
+
+  // Login
+  async login(username: string, password: string) {
+    const res = await fetch(`${API_BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      let msg = "Login failed";
+      try {
+        const data = await res.json();
+        msg = data.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+    return await res.json();
+  },
 };

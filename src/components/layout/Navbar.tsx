@@ -1,13 +1,50 @@
 import { Moon, Sun, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { MobileMenu } from './MobileMenu';
 
 export const Navbar = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  // Check if user is authenticated and get username
+  function parseJwt(token) {
+    if (!token) return null;
+    try {
+      return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+      return null;
+    }
+  }
+  function isTokenValid(token) {
+    const payload = parseJwt(token);
+    if (!payload || !payload.exp) return false;
+    return Date.now() < payload.exp * 1000;
+  }
+  const token = localStorage.getItem('token');
+  const isAuthenticated = isTokenValid(token);
+  const user = isAuthenticated ? parseJwt(token) : null;
+
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Show login toast if just logged in
+    if (isAuthenticated && location.state && location.state.justLoggedIn) {
+      toast({ title: `Welcome, ${user?.username || 'User'}!`, description: 'You are now logged in.' });
+      // Remove state so it doesn't show again
+      window.history.replaceState({}, document.title);
+    }
+    // eslint-disable-next-line
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    toast({ title: 'Logged out', description: 'You have been logged out.' });
+    navigate('/login');
+  };
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
@@ -24,8 +61,8 @@ export const Navbar = () => {
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Attendance', path: '/attendance' },
     { name: 'Students', path: '/students' },
-    { name: 'Devices', path: '/devices' },
-    { name: 'Reports', path: '/reports' },
+    // { name: 'Devices', path: '/devices' }, 
+    // { name: 'Reports', path: '/reports' },
   ];
 
   return (
@@ -82,6 +119,21 @@ export const Navbar = () => {
                 <Moon className="h-5 w-5" />
               )}
             </Button>
+
+
+            {isAuthenticated && (
+              <>
+                <span className="text-sm text-muted-foreground mr-2">{user?.username}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-2"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </Button>
+              </>
+            )}
 
             <Button
               variant="ghost"

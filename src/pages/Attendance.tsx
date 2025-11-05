@@ -16,16 +16,21 @@ import {
 import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { api } from "@/lib/api";
 
 
 export default function Attendance() {
+  const [dateFilter, setDateFilter] = useState('');
+  const [timeFilter, setTimeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState(false);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [courseFilter, setCourseFilter] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('');
+  const [deviceFilter, setDeviceFilter] = useState('');
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { className: string; label: string }> = {
@@ -64,13 +69,12 @@ export default function Attendance() {
     const csv = [
       ['Student ID', 'Name', 'Department', 'Course', 'Period', 'Device', 'Date', 'Timestamp', 'Status'],
       ...attendance.map((row) => [
-        row.fingerprint_id || row.studentId,
+        row.student_id || row.studentId,
         row.student_name || row.studentName,
         row.department,
         row.course,
         row.period,
         row.device_id || row.deviceId,
-        row.date ? new Date(row.date).toLocaleDateString() : '',
         row.timestamp ? new Date(row.timestamp).toLocaleString() : '',
         row.status,
       ]),
@@ -90,13 +94,12 @@ export default function Attendance() {
   const exportToXLSX = () => {
     const ws = XLSX.utils.json_to_sheet(
       attendance.map((row) => ({
-        "Student ID": row.fingerprint_id || row.studentId,
+        "Student ID": row.student_id || row.studentId,
         Name: row.student_name || row.studentName,
         Department: row.department,
         Course: row.course,
         Period: row.period,
         Device: row.device_id || row.deviceId,
-        Date: row.date ? new Date(row.date).toLocaleDateString() : '',
         Timestamp: row.timestamp ? new Date(row.timestamp).toLocaleString() : '',
         Status: row.status,
       }))
@@ -107,42 +110,69 @@ export default function Attendance() {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text('Attendance Report', 14, 15);
-    
-    (doc as any).autoTable({
-      head: [
-        [
-          "Student ID",
-          "Name",
-          "Department",
-          "Course",
-          "Period",
-          "Device",
-          "Date",
-          "Timestamp",
-          "Status",
+    try {
+      alert('Exporting PDF...'); // Debug: confirm function is called
+      const doc = new jsPDF();
+      doc.text('Attendance Report', 14, 15);
+      autoTable(doc, {
+        head: [
+          [
+            "Student ID",
+            "Name",
+            "Department",
+            "Course",
+            "Period",
+            "Device",
+            "Timestamp",
+            "Status",
+          ],
         ],
-      ],
-      body: attendance.map((row) => [
-        row.fingerprint_id || row.studentId,
-        row.student_name || row.studentName,
-        row.department,
-        row.course,
-        row.period,
-        row.device_id || row.deviceId,
-        row.date ? new Date(row.date).toLocaleDateString() : '',
-        row.timestamp ? new Date(row.timestamp).toLocaleString() : '',
-        row.status,
-      ]),
-      startY: 20,
-    });
-    
-    doc.save('attendance.pdf');
+        body: attendance.map((row) => [
+          row.student_id || row.studentId,
+          row.student_name || row.studentName,
+          row.department,
+          row.course,
+          row.period,
+          row.device_id || row.deviceId,
+          row.timestamp ? new Date(row.timestamp).toLocaleString() : '',
+          row.status,
+        ]),
+        startY: 20,
+      });
+      doc.save('attendance.pdf');
+    } catch (err) {
+      alert('PDF export failed: ' + err);
+    }
   };
 
+  // Filter attendance based on searchTerm
+  const filteredAttendance = attendance.filter((record) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      (record.student_id && record.student_id.toLowerCase().includes(term)) ||
+      (record.student_name && record.student_name.toLowerCase().includes(term)) ||
+      (record.department && record.department.toLowerCase().includes(term)) ||
+      (record.course && record.course.toLowerCase().includes(term)) ||
+      (record.period && record.period.toLowerCase().includes(term));
+    const matchesCourse = courseFilter ? record.course === courseFilter : true;
+    const matchesPeriod = periodFilter ? record.period === periodFilter : true;
+    const device = record.device_id || record.deviceId || '';
+    const matchesDevice = deviceFilter ? device === deviceFilter : true;
+    let matchesDate = true;
+    let matchesTime = true;
+    if (dateFilter) {
+      const recordDate = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
+      matchesDate = recordDate === dateFilter;
+    }
+    if (timeFilter) {
+      const recordTime = record.timestamp ? new Date(record.timestamp).toTimeString().slice(0, 5) : '';
+      matchesTime = recordTime === timeFilter;
+    }
+    return matchesSearch && matchesCourse && matchesPeriod && matchesDevice && matchesDate && matchesTime;
+  });
+
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 py-10 px-2 sm:px-6 space-y-8">
       <PageBreadcrumb
         items={[{ label: "Home", href: "/" }, { label: "Attendance" }]}
       />
@@ -158,27 +188,78 @@ export default function Attendance() {
         </p>
       </motion.div>
 
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Attendance Records</CardTitle>
+      <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-lg rounded-3xl">
+        <CardHeader className="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 rounded-t-3xl p-6 shadow-md">
+          <CardTitle className="text-white text-2xl font-bold tracking-wide drop-shadow-lg">
+            Attendance Records
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search students..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+            <div className="flex flex-col sm:flex-row gap-2 mt-7 flex-1 max-w-2xl">
+              <div className="relative flex-1 min-w-[160px] max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-400" />
+                <Input
+                  placeholder="Search students..."
+                  className="pl-9 bg-blue-50/60 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 rounded-xl text-blue-900 placeholder:text-blue-300"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <select
+                value={courseFilter}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                style={{ minWidth: 130 }}
+                className="border border-blue-200 rounded-xl px-2 py-1 bg-blue-50/60 text-blue-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="">All Courses</option>
+                <option value="mathematics">Mathematics</option>
+                <option value="physics">Physics</option>
+                <option value="chemistry">Chemistry</option>
+                <option value="biology">Biology</option>
+                <option value="english">English</option>
+              </select>
+              <select
+                value={periodFilter}
+                onChange={(e) => setPeriodFilter(e.target.value)}
+                style={{ minWidth: 120 }}
+                className="border border-blue-200 rounded-xl px-2 py-1 bg-blue-50/60 text-blue-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="">All Periods</option>
+                <option value="morning">Morning</option>
+                <option value="midmorning">Midmorning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+              </select>
+              <select
+                value={deviceFilter}
+                onChange={(e) => setDeviceFilter(e.target.value)}
+                style={{ minWidth: 120 }}
+                className="border border-blue-200 rounded-xl px-2 py-1 bg-blue-50/60 text-blue-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="">All Devices</option>
+                <option value="esp32_classroom_1">esp32_classroom_1</option>
+                <option value="esp32_classroom_2">esp32_classroom_2</option>
+                {/* Add more device options as needed */}
+              </select>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="border border-blue-200 rounded-xl px-2 py-1 bg-blue-50/60 text-blue-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                style={{ minWidth: 120 }}
+              />
+              <input
+                type="time"
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="border border-blue-200 rounded-xl px-2 py-1 bg-blue-50/60 text-blue-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                style={{ minWidth: 120 }}
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="mr-2 h-4 w-4" />
-                Filter
-              </Button>
+            <div className="flex flex-wrap gap-2 mt-7">
               <Button
                 variant="outline"
                 size="sm"
@@ -209,69 +290,141 @@ export default function Attendance() {
             </div>
           </div>
 
-          <div className="rounded-lg border">
+          <div className="rounded-3xl border-0 bg-gradient-to-br from-white via-blue-50 to-purple-50 shadow-2xl overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-gradient-to-r from-blue-100 via-white to-purple-100/80 backdrop-blur border-b">
                 <TableRow>
-                  <TableHead>Student ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Device</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Student ID
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Name
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Department
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Course
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Period
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Device
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Timestamp
+                  </TableHead>
+                  <TableHead className="py-4 px-3 text-base font-semibold">
+                    Status
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
-                      Loading...
+                    <TableCell
+                      colSpan={8}
+                      className="py-12 text-center text-muted-foreground bg-gray-50"
+                    >
+                      <span className="animate-pulse">
+                        Loading attendance records...
+                      </span>
                     </TableCell>
                   </TableRow>
                 )}
                 {error && (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-8 text-center text-destructive">
+                    <TableCell
+                      colSpan={8}
+                      className="py-12 text-center text-destructive bg-gray-50"
+                    >
                       {error}
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && !error && attendance.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-16 text-center">
+                    <TableCell
+                      colSpan={8}
+                      className="py-20 text-center bg-gray-50"
+                    >
                       <div className="flex flex-col items-center justify-center">
-                        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mx-auto mb-4 text-accent">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2" />
-                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                        <svg
+                          width="56"
+                          height="56"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          className="mx-auto mb-4 text-accent opacity-70"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M12 6v6l4 2"
+                          />
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            fill="none"
+                          />
                         </svg>
-                        <h3 className="text-lg font-semibold mb-1">No Attendance Records</h3>
-                        <span className="max-w-md text-sm text-muted-foreground">There are currently no attendance records to display. Once students are marked present, their records will appear here.</span>
+                        <h3 className="text-xl font-semibold mb-1 text-gray-700">
+                          No Attendance Records
+                        </h3>
+                        <span className="max-w-md text-base text-muted-foreground">
+                          There are currently no attendance records to display.
+                          Once students are marked present, their records will
+                          appear here.
+                        </span>
                       </div>
                     </TableCell>
                   </TableRow>
                 )}
-                {!loading && !error && attendance.length > 0 && attendance.map((record) => (
-                  <TableRow key={record._id || record.id}>
-                    <TableCell className="font-medium">{record.fingerprint_id || record.studentId}</TableCell>
-                    <TableCell>{record.student_name || record.studentName}</TableCell>
-                    <TableCell>{record.department}</TableCell>
-                    <TableCell>{record.course}</TableCell>
-                    <TableCell>{record.period}</TableCell>
-                    <TableCell>{record.device_id || record.deviceId}</TableCell>
-                    <TableCell>{record.date ? new Date(record.date).toLocaleDateString() : ''}</TableCell>
-                    <TableCell>{record.timestamp ? new Date(record.timestamp).toLocaleString() : ''}</TableCell>
-                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {!loading &&
+                  !error &&
+                  filteredAttendance.length > 0 &&
+                  filteredAttendance.map((record, idx) => (
+                    <TableRow
+                      key={record._id || record.id}
+                      className={
+                        idx % 2 === 0
+                          ? "bg-blue-50/60 hover:bg-blue-100/80 transition-colors"
+                          : "bg-purple-50/60 hover:bg-purple-100/80 transition-colors"
+                      }
+                    >
+                      <TableCell className="font-medium py-3 px-3 rounded-l-xl text-blue-900">
+                        {record.student_id || record.studentId}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-blue-900">
+                        {record.student_name || record.studentName}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-blue-900">
+                        {record.department}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-indigo-700 font-semibold">
+                        {record.course}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-purple-700 font-semibold">
+                        {record.period}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-blue-700">
+                        {record.device_id || record.deviceId}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 text-gray-700">
+                        {record.timestamp
+                          ? new Date(record.timestamp).toLocaleString()
+                          : ""}
+                      </TableCell>
+                      <TableCell className="py-3 px-3 rounded-r-xl">
+                        {getStatusBadge(record.status)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </div>

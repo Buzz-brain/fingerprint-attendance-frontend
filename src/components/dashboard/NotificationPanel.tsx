@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCircle, AlertCircle, Info, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,20 +13,45 @@ interface Notification {
 }
 
 export const NotificationPanel = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'success',
-      message: 'John Doe marked attendance successfully',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      type: 'warning',
-      message: 'Duplicate attendance attempt detected for Jane Smith',
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    // Connect to backend SSE endpoint
+    const eventSource = new EventSource('/api/events');
+    eventSourceRef.current = eventSource;
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Map backend event to notification type/message
+        let type: Notification['type'] = 'info';
+        let message = data.details || data.message || 'New event';
+        if (data.eventType === 'student_registered') type = 'success';
+        if (data.eventType === 'student_registration_failed') type = 'warning';
+        if (data.eventType === 'attendance_marked') type = 'success';
+        if (data.eventType === 'attendance_duplicate') type = 'warning';
+        if (data.eventType === 'error') type = 'error';
+        setNotifications((prev) => [
+          {
+            id: data._id || data.id || Math.random().toString(36).slice(2),
+            type,
+            message,
+            timestamp: data.timestamp || new Date().toISOString(),
+          },
+          ...prev.slice(0, 19), // keep max 20 notifications
+        ]);
+      } catch (err) {
+        // ignore parse errors
+      }
+    };
+    eventSource.onerror = () => {
+      // Optionally handle connection errors
+    };
+    return () => {
+      eventSource.close();
+    };
+  }, []);
 
   const getIcon = (type: string) => {
     switch (type) {
