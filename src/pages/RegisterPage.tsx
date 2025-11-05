@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useToast } from '../components/ui/use-toast';
+// import { toast } from '../components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
@@ -10,6 +12,10 @@ const RegisterPage = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  // Toast notification
+  // Use ES import for toast
+  // import { toast } from '@/components/ui/use-toast';
 
   // Play notification sound
   function playSound() {
@@ -47,8 +53,9 @@ const RegisterPage = () => {
       const title = 'Registration successful!';
       const description = 'You can now log in.';
       setSuccess(`${title} ${description}`);
-      playSound();
-      speak(`${title}. ${description}`);
+  toast({ title, description });
+  playSound();
+  speak(`${title}. ${description}`);
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
