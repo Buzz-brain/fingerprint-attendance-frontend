@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useToast } from '../components/ui/use-toast';
-// import { toast } from '../components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
@@ -13,9 +12,6 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  // Toast notification
-  // Use ES import for toast
-  // import { toast } from '@/components/ui/use-toast';
 
   // Play notification sound
   function playSound() {
