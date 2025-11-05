@@ -17,29 +17,39 @@ import RegisterPage from "./pages/RegisterPage";
 const queryClient = new QueryClient();
 
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
-        <GlobalEventListener />
-        <Layout>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/" element={<Landing />} />
-            <Route element={<RequireAuth />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/attendance" element={<Attendance />} />
-              <Route path="/students" element={<Students />} />
-              <Route path="/devices" element={<Devices />} />
-              <Route path="/reports" element={<Reports />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+
+import React, { useEffect } from 'react';
+
+const App = () => {
+  useEffect(() => {
+    // Ping backend health endpoint to wake up Render backend
+    fetch(import.meta.env.VITE_API_BASE_URL + '/api/health').catch(() => {});
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <BrowserRouter>
+          <GlobalEventListener />
+          <Layout>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/" element={<Landing />} />
+              <Route element={<RequireAuth />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/students" element={<Students />} />
+                <Route path="/devices" element={<Devices />} />
+                <Route path="/reports" element={<Reports />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
