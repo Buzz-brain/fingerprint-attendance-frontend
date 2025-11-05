@@ -61,6 +61,12 @@ export default function Students() {
       }
     }
     fetchStudents();
+    // Listen for students-updated event
+    const handler = () => fetchStudents();
+    window.addEventListener('students-updated', handler);
+    return () => {
+      window.removeEventListener('students-updated', handler);
+    };
   }, []);
 
   return (

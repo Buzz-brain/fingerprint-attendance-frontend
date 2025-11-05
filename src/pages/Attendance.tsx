@@ -61,6 +61,12 @@ export default function Attendance() {
       }
     }
     fetchAttendance();
+    // Listen for attendance-updated event
+    const handler = () => fetchAttendance();
+    window.addEventListener('attendance-updated', handler);
+    return () => {
+      window.removeEventListener('attendance-updated', handler);
+    };
   }, []);
 
   const exportToCSV = async () => {

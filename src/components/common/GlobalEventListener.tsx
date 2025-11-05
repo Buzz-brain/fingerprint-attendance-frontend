@@ -41,6 +41,8 @@ export function GlobalEventListener() {
           description = `${data.studentName || data.name || "A student"} has been registered successfully!`;
           variant = "default";
           toast({ title, description, variant });
+          // Dispatch custom event for students update
+          window.dispatchEvent(new Event('students-updated'));
         } else if (data.eventType === "student_registration_failed") {
           title = "Student Registration Failed";
           description = "Registration failed.";
@@ -68,6 +70,8 @@ export function GlobalEventListener() {
           description = `${data.studentName || "A student"} was marked ${data.status || ''}.`;
           variant = data.status === "absent" ? "destructive" : "default";
           toast({ title, description, variant });
+          // Dispatch custom event for attendance update
+          window.dispatchEvent(new Event('attendance-updated'));
         } else {
           return;
         }
