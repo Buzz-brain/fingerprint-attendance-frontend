@@ -30,10 +30,36 @@ export const Navbar = () => {
 
   const { toast } = useToast();
 
+  // Play notification sound
+  function playSound() {
+    const ctx = new window.AudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.value = 0.1;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, 180);
+  }
+
+  // Speak toast message
+  function speak(text: string) {
+    if ('speechSynthesis' in window) {
+      const utter = new window.SpeechSynthesisUtterance(text);
+      utter.rate = 1.1;
+      window.speechSynthesis.speak(utter);
+    }
+  }
+
   useEffect(() => {
     // Show login toast if just logged in
     if (isAuthenticated && location.state && location.state.justLoggedIn) {
-      toast({ title: `Welcome, ${user?.username || 'User'}!`, description: 'You are now logged in.' });
+      const title = `Welcome, ${user?.username || 'User'}!`;
+      const description = 'You are now logged in.';
+      toast({ title, description });
+      playSound();
+      speak(`${title}. ${description}`);
       // Remove state so it doesn't show again
       window.history.replaceState({}, document.title);
     }
@@ -42,7 +68,11 @@ export const Navbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    toast({ title: 'Logged out', description: 'You have been logged out.' });
+    const title = 'Logged out';
+    const description = 'You have been logged out.';
+    toast({ title, description });
+    playSound();
+    speak(`${title}. ${description}`);
     navigate('/login');
   };
 

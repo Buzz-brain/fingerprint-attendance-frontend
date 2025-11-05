@@ -11,6 +11,28 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Play notification sound
+  function playSound() {
+    const ctx = new window.AudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.value = 0.1;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, 180);
+  }
+
+  // Speak toast message
+  function speak(text: string) {
+    if ('speechSynthesis' in window) {
+      const utter = new window.SpeechSynthesisUtterance(text);
+      utter.rate = 1.1;
+      window.speechSynthesis.speak(utter);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -22,7 +44,11 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       await api.register(username, password);
-      setSuccess('Registration successful! You can now log in.');
+      const title = 'Registration successful!';
+      const description = 'You can now log in.';
+      setSuccess(`${title} ${description}`);
+      playSound();
+      speak(`${title}. ${description}`);
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
