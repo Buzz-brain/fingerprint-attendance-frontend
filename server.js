@@ -70,8 +70,12 @@ app.use('/api/register', studentRoutes);  // Registration (if used by ESP32)
 // Auth routes (login)
 app.use('/api', authRouter);
 
-// --- Protected dashboard API endpoints ---
-app.use('/api/attendance', authMiddleware, attendanceRouter); // Attendance dashboard
+
+// --- Attendance endpoints ---
+// Allow ESP32 to POST attendance without auth
+app.post('/api/attendance', attendanceRouter);
+// Protect all other attendance routes (dashboard, stats, etc.)
+app.use('/api/attendance', authMiddleware, attendanceRouter);
 // Add more protected routes here as needed
 
 // Health check route
